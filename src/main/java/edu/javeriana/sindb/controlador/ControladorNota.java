@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,20 +17,34 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import edu.javeriana.sindb.ex.NotasInvalidas;
 import edu.javeriana.sindb.modelo.Nota;
 import edu.javeriana.sindb.repositorio.RepositorioNota;
+import edu.javeriana.sindb.service.NotaService;
 
 @RestController
 @CrossOrigin(origins = "*")
 @RequestMapping("/api/")
 public class ControladorNota {
 
+    private final NotaService notaServiceFacade;
+
     @Autowired
     private RepositorioNota repositorioNota;
+
+    @Autowired
+    public ControladorNota(NotaService notaServiceFacade) {
+        this.notaServiceFacade = notaServiceFacade;
+    }
 
     @GetMapping("/notas")
     List<Nota> traeNotas() {
         return repositorioNota.findAll();
+    }
+
+    @GetMapping("/nota-estudiante/{estudianteId}")
+    public List<Nota> traeNotasPorEstudiante(@PathVariable Integer estudianteId) {
+        return repositorioNota.findByEstudiante_id(estudianteId);
     }
 
     @GetMapping("/nota/{id}")
@@ -44,8 +59,18 @@ public class ControladorNota {
     }
 
     @PostMapping("/nota-crea")
-    public Nota creaEstudiante(@RequestBody Nota nota) {
-        return repositorioNota.save(nota);
+    public ResponseEntity<?> creaNota(@RequestBody Nota nota) {
+        try {
+            Nota notaGuardada = notaServiceFacade.guardarNota(nota);
+            return ResponseEntity.ok(notaGuardada);
+        } catch (NotasInvalidas e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @ExceptionHandler(NotasInvalidas.class)
+    public ResponseEntity<String> handleNotasInvalidasException(NotasInvalidas e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
     @PutMapping("/nota-act/{id}")

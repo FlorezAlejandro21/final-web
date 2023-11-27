@@ -109,8 +109,6 @@ function redirigirPagina(id) {
 }
 
 
-
-
 function editarEstudiante(id) {
   const nombre = document.getElementById("nombre").value;
   const apellido = document.getElementById("apellido").value;

@@ -25,7 +25,7 @@
     <div class="container">
         <div class="d-flex bd-highlight mb-3">
             <div class="me-auto p-2 bd-highlight">
-                <h2>Estudiantes Web</h2>
+                <h2>Programación Web - Estudiante: </h2>
             </div>
             <div class="p-2 bd-highlight">
                 <button type="button" class="btn btn-secondary" onclick="mostrarVentanaEmergente()">Nuevo</button>
@@ -40,6 +40,7 @@
                         <th scope="col">Observacion</th>
                         <th scope="col">Valor</th>
                         <th scope="col">Porcentaje</th>
+                        <th scope="col">Action</th>
                     </tr>
                 </thead>
                 <tbody id="mytable">
@@ -50,17 +51,16 @@
             </table>
         </div>
     </div>
+    <div style="margin-left: 160px;" id="porcentajePonderado"></div>
 
-    <!-- Ventana emergente para ingresar datos de la nota -->
     <div class="modal" tabindex="-1" role="dialog" id="myModal">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Nueva Nota</h5>
+                    <h5 class="modal-title">Nota</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Formulario para ingresar datos de la nota -->
                     <form id="notaForm">
                         <div class="mb-3">
                             <label for="observacion" class="form-label">Observacion</label>
@@ -68,17 +68,22 @@
                         </div>
                         <div class="mb-3">
                             <label for="valor" class="form-label">Valor</label>
-                            <input type="number" class="form-control" id="valor" required>
+                            <input type="text" class="form-control" id="valor" required>
                         </div>
                         <div class="mb-3">
                             <label for="porcentaje" class="form-label">Porcentaje</label>
-                            <input type="number" class="form-control" id="porcentaje" required>
+                            <input type="text" class="form-control" id="porcentaje" required>
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="guardarNota()">Guardar</button>
+                        <button type="button" class="btn btn-primary" onclick="guardarNota()">Guardar Nota</button>
                     </form>
                 </div>
             </div>
         </div>
+    </div>
+    <div class="p-2 bd-highlight">
+        <a href="index.html">
+            <button type="button" class="btn btn-primary">Volver al Inicio</button>
+        </a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.16/dist/sweetalert2.all.min.js"></script>
@@ -119,10 +124,11 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    // Aquí puedes manejar la respuesta del servicio, por ejemplo, mostrar una alerta
+
                     Swal.fire('¡Nota creada!', 'La nota se ha creado exitosamente.', 'success');
                     // Cerrar la ventana emergente
                     $('#myModal').modal('hide');
+                    traerNota()
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -133,10 +139,11 @@
         function traerNota() {
             const urlParams = new URLSearchParams(window.location.search);
             const estudianteId = urlParams.get('id');
+
             fetch(`http://localhost:8080/api/estudiante/${estudianteId}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Llama a la función actualizarTabla con los datos del estudiante
+                    document.querySelector('h2').textContent = 'Programación Web - Estudiante: ' + data.nombre + ' ' + data.apellido;
                     actualizarTabla(data);
                 })
                 .catch(error => console.error('Error al obtener datos:', error));
@@ -160,10 +167,82 @@
                 <td>${nota.observacion}</td>
                 <td>${nota.valor}</td>
                 <td>${nota.porcentaje}</td>
+                <td><button class="btn btn-danger" onclick="borrarNota(${nota.id})">Borrar</button></td>
+        
             `;
                 tabla.appendChild(fila);
             });
+            // Calcular el porcentaje ponderado
+            var porcentajePonderado = calcularPorcentajePonderado(estudiante.notas);
+
+            // Mostrar el enunciado con el porcentaje ponderado
+            var enunciado = `Con el porcentaje acumulado del ${porcentajePonderado}%, la nota es: ${calcularNota(estudiante.notas)}`;
+            document.getElementById('porcentajePonderado').innerHTML = `<h2>${enunciado}</h2>`;
         }
+
+        function calcularPorcentajePonderado(notas) {
+            var sumaPonderada = 0;
+            var sumaPorcentajes = 0;
+
+            notas.forEach(function (nota) {
+                sumaPonderada += (nota.valor * nota.porcentaje);
+                sumaPorcentajes += nota.porcentaje;
+            });
+
+            if (sumaPorcentajes === 0) {
+                return 0; // Evitar división por cero
+            }
+
+            return (sumaPorcentajes).toFixed(2); // Redondear a dos decimales
+        }
+
+        function calcularNota(notas) {
+            var sumaNotas = 0;
+
+            notas.forEach(function (nota) {
+                sumaNotas += (nota.valor * nota.porcentaje / 100);
+            });
+
+            return sumaNotas.toFixed(2); // Redondear a dos decimales
+        }
+
+        function borrarNota(notaId) {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: 'Esta acción no se puede deshacer.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, borrar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // El usuario confirmó el borrado
+                    fetch(`http://localhost:8080/api/nota-borra/${notaId}`, {
+                        method: 'DELETE',
+                    })
+                        .then(response => {
+                            if (response.status === 204) {
+                                // Nota borrada con éxito
+                                Swal.fire('¡Nota borrada!', 'La nota se ha borrado exitosamente.', 'success');
+                                traerNota(); // Actualizar la tabla después de borrar la nota
+                            } else {
+                                Swal.fire('Error', 'Hubo un error al borrar la nota.', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire('Error', 'Hubo un error al borrar la nota.', 'error');
+                        });
+                }
+            });
+        }
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            traerNota();
+        });
     </script>
 
 </body>
